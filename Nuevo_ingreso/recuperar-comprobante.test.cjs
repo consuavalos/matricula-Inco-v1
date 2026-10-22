@@ -65,6 +65,10 @@ test('recuperación: verifica datos, no crea matrículas, muestra ficha original
       assert.match(await page.locator('#estado').innerText(),modo==='limite'?/15 minutos/:/no está habilitada/);
     }
     await page.reload(); assert.equal(await page.locator('#resultado').isVisible(),false);
+    for (const id of ['nie','nacimiento','dui']) assert.equal(await page.locator('#'+id).inputValue(), '', 'la consulta se abre vacía');
+    await llenar();
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted:true })));
+    for (const id of ['nie','nacimiento','dui']) assert.equal(await page.locator('#'+id).inputValue(), '', 'no restaura datos al volver');
     assert.deepEqual(errores,[]);
   } finally { await browser?.close(); await new Promise(r=>servidor.close(r)); }
 });

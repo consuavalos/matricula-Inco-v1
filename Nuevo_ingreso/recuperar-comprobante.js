@@ -8,6 +8,15 @@ const buscar = document.getElementById('buscar');
 let ficha = '';
 let consultando = false;
 function limpiar() { resultado.hidden = true; datos.replaceChildren(); ficha = ''; }
+function iniciarConsultaVacia() {
+  limpiar();
+  form.reset();
+  for (const campo of form.querySelectorAll('input')) campo.value = '';
+  estado.textContent = '';
+}
+iniciarConsultaVacia();
+// Incluye la restauración del navegador al volver con Atrás/Adelante.
+window.addEventListener('pageshow', iniciarConsultaVacia);
 try { document.body.classList.toggle('oscuro', localStorage.getItem('temaMatricula') === 'oscuro'); } catch {}
 document.getElementById('tema').addEventListener('click', () => document.body.classList.toggle('oscuro'));
 document.getElementById('nie').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0,12); });
