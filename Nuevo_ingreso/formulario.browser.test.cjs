@@ -18,6 +18,10 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
         export async function nieYaExiste(){await new Promise(r=>setTimeout(r,40));if(window.fallaNie)throw Error('offline');return !!window.duplicado;}
         export async function crearMatricula(p){window.envios=(window.envios||0)+1;window.datos=p;(window.fichasIntentadas||=[]).push(p.numeroFicha);await new Promise(r=>setTimeout(r,80));if(window.fallaGuardar)throw {code:'23514'};if(window.colisionFicha){window.colisionFicha=false;throw {code:'23505',message:'matricula_ficha_unica'};}return {id:'simulado'};}`);
     }
+    if (nombre === '/telefonos-sv.js') {
+      res.setHeader('Content-Type', 'text/javascript');
+      return res.end(fs.readFileSync(path.join(__dirname, '..', 'telefonos-sv.js')));
+    }
     const archivo = path.resolve(__dirname, '..', '.' + nombre);
     if (!archivo.startsWith(__dirname + path.sep) || !fs.existsSync(archivo) || fs.statSync(archivo).isDirectory()) { res.writeHead(404); return res.end(); }
     res.setHeader('Content-Type', /\.(m?js)$/.test(archivo) ? 'text/javascript' : archivo.endsWith('.css') ? 'text/css' : 'text/html');
@@ -74,7 +78,7 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
         });
         for (const [selector, contraste] of tema.contraste) assert.ok(contraste >= 4.5, `${html} ${oscuro ? 'oscuro' : 'claro'} ${selector}: contraste ${contraste}`);
         assert.ok(tema.nombreInvalido && tema.nieInvalido && tema.correoInvalido && tema.preguntasBloqueadas);
-        assert.equal(tema.limiteDireccion, 50);
+        assert.equal(tema.limiteDireccion, 70);
         await page.locator('#bloqueDocumentacion').screenshot({ path:require('node:os').tmpdir() + `/matricula-documentacion-${html}-${oscuro ? 'oscuro' : 'claro'}.png` });
       }
       // El resto del flujo se prueba completo en oscuro en una página y claro en la otra.
@@ -101,6 +105,16 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
         });
       });
       assert.deepEqual(telefonos, Array(5).fill({ bloqueaLetra:true, formatoPegado:'6732-4982', conservaValor:true, limpiaAutofill:true, teclado:'numeric' }));
+      const largos = await page.evaluate(() => ['telefonoEstudiante','telefonoResponsable','whatsappResponsable','madreCelular','padreCelular'].map(id => {
+        const campo=document.getElementById(id);
+        campo.value='634892617';
+        campo.dispatchEvent(new Event('input',{bubbles:true}));
+        const resultado={digitos:campo.value.replace(/\D/g,''),valido:window.pruebas.validarCampo(campo,true)};
+        campo.value='6348-9261';
+        campo.dispatchEvent(new Event('input',{bubbles:true}));
+        return resultado;
+      }));
+      assert.deepEqual(largos,Array(5).fill({digitos:'634892617',valido:false}),'un número largo se rechaza sin convertirlo en otro de ocho dígitos');
       const direcciones = await page.evaluate(() => {
         window.pruebas.mostrarPaso(3);
         const el = document.getElementById('direccionResidencia');
@@ -115,12 +129,12 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
         return { resultado, basura, sigla };
       });
       assert.deepEqual(direcciones, { resultado:[false,false,false,true,true], basura:false, sigla:true });
-      assert.equal(await page.locator('#direccionResidencia').getAttribute('maxlength'), '50');
+      assert.equal(await page.locator('#direccionResidencia').getAttribute('maxlength'), '70');
       assert.equal(await page.evaluate(() => {
         const campo = document.getElementById('direccionResidencia');
-        campo.value = 'Calle Las Flores, casa 123, San Salvador, zona norte.';
+        campo.value = 'Calle Las Flores, casa 123, San Salvador, zona norte, junto al parque central.';
         return window.pruebas.validarCampo(campo, true);
-      }), false, 'rechaza direcciones de más de 50 caracteres incluso asignadas por código');
+      }), false, 'rechaza direcciones de más de 70 caracteres incluso asignadas por código');
       // Regresión del bloqueo de la captura: primer paso válido con hermanos incompletos en otro paso.
       for (const [id, valor] of Object.entries({ nie:'632478263746', duiEstudiante:'45444533-3', primerApellido:'Avalos', segundoApellido:'Cordero', primerNombre:'Manuel', segundoNombre:'Antonio', lugarNacimiento:'San Salvador - San Salvador Centro', fechaNacimiento:'2009-11-14', telefonoEstudiante:'2387-2987', correoPersonal:'manuel@gmail.com' })) {
         await page.locator(`#${id}`).fill(valor);
@@ -138,7 +152,7 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
       await page.locator('#btnAnterior').click();
       await page.locator('#primerNombre').fill('');
       await page.locator('#btnSiguiente').click();
-      assert.ok(alertas.at(-1).includes('Primer nombre:'), 'la alerta identifica el campo que impide avanzar');
+      assert.equal(alertas.at(-1), 'Revise los campos marcados en el paso 1.', 'el aviso es breve y el detalle queda junto al campo');
       assert.equal(await page.locator('#nie').getAttribute('aria-invalid'), null, 'los campos ocultos no borran ni crean errores ajenos');
       await page.locator('#primerNombre').fill('Manuel');
       await page.evaluate(() => {
@@ -150,26 +164,20 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
       });
       await page.evaluate(() => window.pruebas.mostrarPaso(4));
       await page.locator('#enfermedad').selectOption('Sí');
-      assert.equal(await page.locator('#cualEnfermedad').getAttribute('list'), 'enfermedadesComunes');
-      assert.ok(await page.locator('#enfermedadesComunes option[value="Asma"]').count());
-      assert.equal(await page.evaluate(() => window.pruebas.validarCampo(document.getElementById('cualEnfermedad'))), false);
-      await page.locator('#cualEnfermedad').fill('Asma');
-      assert.equal(await page.evaluate(() => window.pruebas.validarCampo(document.getElementById('cualEnfermedad'))), true);
-      await page.locator('#btnOtraEnfermedad').click();
-      assert.equal(await page.evaluate(() => document.activeElement.id), 'cualEnfermedad');
-      await page.locator('#cualEnfermedad').fill('Hipotiroidismo');
+      if (!await page.locator('.salud-enfermedad').count()) await page.locator('#btnAgregarSalud').click();
+      await page.locator('.salud-enfermedad').first().fill('Asma');
+      await page.locator('#enfermedad').selectOption('No');
+      assert.equal(await page.locator('.salud-enfermedad').count(), 0, 'No limpia las condiciones anteriores');
       await page.evaluate(() => window.pruebas.mostrarPaso(2));
       await page.reload();
       await page.waitForFunction(() => window.pruebas && document.getElementById('matriculaForm').dataset.borradorListo === 'true');
       assert.equal(await page.locator('#primerNombre').inputValue(), 'Manuel', 'recupera el texto al recargar');
-      assert.equal(await page.locator('#cualEnfermedad').inputValue(), 'Hipotiroidismo', 'recupera la enfermedad escrita');
       await page.evaluate(() => {
         const enfermedad = document.getElementById('enfermedad');
         enfermedad.value = 'No';
         enfermedad.dispatchEvent(new Event('change', { bubbles:true }));
       });
-      assert.equal(await page.locator('#cualEnfermedad').inputValue(), '', 'No limpia la enfermedad anterior');
-      assert.equal(await page.evaluate(() => window.pruebas.validarCampo(document.getElementById('cualEnfermedad'), true)), true, 'No exige enfermedad cuando no corresponde');
+      assert.equal(await page.locator('.salud-enfermedad').count(), 0, 'No exige condiciones cuando no corresponde');
       assert.equal(await page.locator('.form-step.activo').getAttribute('data-step'), '2', 'recupera el paso');
       assert.equal(await page.locator('.hermano-nombre').inputValue(), 'Carlos Avalos', 'recupera hermanos');
       assert.equal(await page.locator('#fotoEstudiante').getAttribute('data-estado-foto'), 'lista', 'recupera y vuelve a validar la foto');
@@ -196,7 +204,7 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
           basuras: ['Ewfewf','Efwfwef','Ewfkjewkj','Ewfwef'].map(valor => { campos[0].value = valor; return window.pruebas.validarCampo(campos[0]); })
         };
       });
-      assert.deepEqual(reglas, { maximos:[12,12,12,12], preguntasDeshabilitadas:true, longitudes:[true,true,true,true,true,true,true,true,false], basuras:[false,false,false,false] });
+      assert.deepEqual(reglas, { maximos:[12,12,12,12], preguntasDeshabilitadas:true, longitudes:[false,false,true,true,true,true,true,true,false], basuras:[false,false,false,false] });
       assert.equal(await page.getByRole('button', { name:'Borrar borrador y empezar de nuevo' }).count(), 0);
       assert.equal(await page.locator('#madreOcupacion').getAttribute('list'), 'ocupacionesComunes');
       assert.equal(await page.locator('#padreOcupacion').getAttribute('list'), 'ocupacionesComunes');
@@ -321,6 +329,10 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
         return Array.from(document.querySelectorAll('[aria-invalid="true"]')).map(el => [el.id, el.value, el.closest('.campo')?.querySelector('.error-mensaje')?.textContent]);
       });
       assert.deepEqual(invalidos, [], JSON.stringify(invalidos));
+      await page.evaluate(() => window.pruebas.mostrarPaso(6));
+      const documentos = page.locator('.documentacion-grupo:not([hidden]) input');
+      await documentos.nth(0).check();
+      await documentos.nth(3).check();
       await page.evaluate(() => { window.fallaNie = true; document.getElementById('matriculaForm').requestSubmit(); });
       await page.waitForFunction(() => !document.getElementById('matriculaForm').hasAttribute('aria-busy'));
       assert.equal(await page.evaluate(() => window.envios || 0), 0, 'sin verificar el NIE no se envía');
@@ -338,6 +350,7 @@ test('regresión de ambos formularios y guardado con Supabase simulado', async (
       assert.equal(await page.evaluate(() => window.datos.padreOcupacion), 'Técnico de refrigeración');
       assert.equal(await page.evaluate(() => window.datos.correoPersonal), 'jose@outlook.com');
       assert.equal(await page.evaluate(() => window.datos.correoResponsable), 'ana@yahoo.com');
+      assert.deepEqual(await page.evaluate(() => window.datos.disponibilidadDocumentos.documentos.map(d => d.disponible)), [true,false,false,true,false,false], 'envía documentos disponibles y pendientes con la matrícula');
       assert.equal(await page.evaluate(() => localStorage.getItem('matricula.borrador.v1')), null, 'el guardado confirmado elimina el borrador');
       assert.deepEqual(await page.evaluate(() => new Promise((resolve, reject) => {
         const peticion = indexedDB.open('matricula-borrador', 1);

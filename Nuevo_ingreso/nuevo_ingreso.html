@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Formulario de Matrícula INCO - Nuevo ingreso</title>
-  <link rel="stylesheet" href="nuevo_ingreso.css?v=3" />
+  <link rel="stylesheet" href="nuevo_ingreso.css?v=4" />
   <style>
     /* ===== Estilos para la sección de Hermanos (dinámica) ===== */
     #bloqueHermanos {
@@ -87,6 +87,80 @@
       .btn-hermano-quitar {
         justify-self: end;
       }
+    }
+
+    /* ===== Estilos para la sección de Salud (dinámica) ===== */
+    #bloqueSalud {
+      margin-top: .75rem;
+      padding: 1rem;
+      border: 1px solid #d8e2dc;
+      border-radius: 10px;
+      background: #f8faf9;
+    }
+    #listaSalud {
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+    .fila-salud {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr auto;
+      gap: .6rem;
+      align-items: end;
+      background: #fff;
+      padding: .6rem;
+      border-radius: 8px;
+      border: 1px solid #e3e9e6;
+    }
+    .fila-salud-invalida { border-color: red; }
+    .fila-salud .campo {
+      margin: 0;
+      position: relative;
+    }
+    .acciones-salud {
+      margin-top: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    #avisoSaludVacio {
+      display: none;
+      margin-top: .5rem;
+      color: #b42318;
+      font-size: .85rem;
+    }
+    @media (max-width: 780px) {
+      .fila-salud { grid-template-columns: 1fr; }
+    }
+
+    /* Autocompletado de enfermedad (estilo similar al de lugar de nacimiento) */
+    .campo-autocompletar { position: relative; }
+    .autocompletado-lista {
+      position: absolute;
+      z-index: 20;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin: 2px 0 0 0;
+      padding: .25rem 0;
+      list-style: none;
+      background: #fff;
+      border: 1px solid #d8e2dc;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,.08);
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .autocompletado-lista li {
+      padding: .45rem .7rem;
+      font-size: .9rem;
+      cursor: pointer;
+    }
+    .autocompletado-lista li:hover,
+    .autocompletado-lista li:focus {
+      background: #eef6f1;
+      color: #2f6b4f;
     }
 
     /* ===== Recomendaciones de fotografía ===== */
@@ -317,9 +391,9 @@
         <div class="grid-2">
           <div class="campo">
             <label for="nie">NIE</label>
-            <input type="text" id="nie" name="nie" required inputmode="numeric" maxlength="12" pattern="[0-9]{1,12}"
+            <input type="text" id="nie" name="nie" required inputmode="numeric" minlength="7" maxlength="12" pattern="[0-9]{7,12}"
                    placeholder="000000000" title="El NIE solo debe contener números,
-                   Debe contener hasta 12 dígitos" />
+                   entre 7 y 12 dígitos" />
           </div>
           <div class="campo">
             <label for="duiEstudiante">DUI del estudiante (opcional)</label>
@@ -405,9 +479,9 @@
     required
     inputmode="tel"
     maxlength="9"
-    pattern="[0-9]{4}-?[0-9]{4}"
+    pattern="[2567][0-9]{3}-?[0-9]{4}"
     placeholder="0000-0000"
-    title="Ingrese 8 números; puede escribirlos con o sin guion"
+    title="Teléfono: 8 dígitos, comienza con 2, 5, 6 o 7."
   />
 </div>
           <div class="campo campo-full">
@@ -424,9 +498,10 @@
   id="correoPersonal"
   name="correoPersonal"
   required
+  maxlength="35"
   placeholder="ejemplo@correo.com"
-  pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}"
-  title="Ingrese un correo electrónico válido con arroba (@), por ejemplo: ejemplo@correo.com" />
+  pattern="[a-z0-9]+@[a-z0-9]+\.[a-z]{2,}"
+  title="Correo válido. Máximo 35 caracteres." />
           </div>
         </div>
 
@@ -436,10 +511,15 @@
           <div class="foto-columna">
             <label for="fotoEstudiante" class="foto-label">
               <span class="foto-placeholder">📷 Subir foto (JPG / PNG)<br><small>Obligatoria</small></span>
-              <input type="file" id="fotoEstudiante" name="fotoEstudiante" accept=".jpg,.jpeg,.png" required />
+              <input type="file" id="fotoEstudiante" name="fotoEstudiante" accept="image/jpeg,image/png" required aria-describedby="fotoError" />
               <div id="vistaPreviaFoto" class="vista-previa"></div>
             </label>
-            <p class="foto-requisitos">Tamaño recomendado: 3.5 x 2.5 cm</p>
+            <div class="foto-acciones">
+              <button type="button" id="btnSubirFoto">Subir foto</button>
+              <button type="button" id="btnTomarFoto">Tomar foto</button>
+            </div>
+            <input type="file" id="fotoCamara" accept="image/jpeg,image/png" capture="user" hidden />
+            <p class="foto-requisitos">JPG o PNG · 3.5 × 2.5 cm</p>
             <span id="fotoError" class="error-mensaje" style="color: red; font-size: 0.85rem; display: block; margin-top: 5px;"></span>
           </div>
 
@@ -451,7 +531,7 @@
             </div>
             <div class="foto-recomendaciones-grupo">
               <strong>Niños:</strong>
-              <p>Corte de cabello francesa clara, sin barba, No camisa de color, solo blanca.</p>
+              <p>Corte de cabello a la francesa, claro y sin barba. No camisa de centro de color, solo blanca.</p>
             </div>
             <div class="foto-recomendaciones-grupo">
               <strong>Indicación general:</strong>
@@ -474,10 +554,9 @@
             <select id="especialidad" name="especialidad" required>
               <option value="" disabled selected>¿Qué especialidad o bachillerato cursará?</option>
               <option value="Bachillerato General">Bachillerato General</option>
-              <option value="Administrativo Contable">Gestión Organizacional (Administrativo Contable)</option>
-              <option value="Servicios Turísticos">Administrativo Contable (Segundos y Terceros)</option>
+              <option value="Administrativo Contable">Administrativo Contable (Segundos y Terceros)</option>
               <option value="Servicios Turísticos">Servicios Turísticos</option>
-              <option value="Desarrollo de Software">Desarrollo de Software y Servicios Digitales</option>
+              <option value="Desarrollo de Software">Desarrollo de Software</option>
             </select>
           </div>
           <div class="campo">
@@ -686,7 +765,10 @@
           <div class="campo campo-full">
             <label for="direccionResidencia">Dirección de residencia</label>
             <input type="text" id="direccionResidencia" name="direccionResidencia" required
-                   minlength="10" maxlength="50" placeholder="Ej. Cantón El Zapote, calle principal, casa 12" />
+                   minlength="10" maxlength="70"
+                   pattern="[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ.,#°\-\s]+"
+                   title="Máximo 70 caracteres. No se permiten símbolos especiales como * + &lt; &gt; @ % ni similares."
+                   placeholder="Ej. Cantón El Zapote, calle principal, casa 12" />
           </div>
         </div>
       </section>
@@ -706,31 +788,14 @@
             </select>
           </div>
 
-          <div class="campo" id="campoCualEnfermedad" style="display:none;">
-            <label for="cualEnfermedad">¿Cuál enfermedad?</label>
-            <input type="text" id="cualEnfermedad" name="cualEnfermedad" list="enfermedadesComunes" maxlength="150" placeholder="Seleccione o escriba una enfermedad" aria-describedby="ayudaEnfermedad" required />
-            <datalist id="enfermedadesComunes">
-              <option value="Asma"></option>
-              <option value="Alergias"></option>
-              <option value="Diabetes"></option>
-              <option value="Hipertensión arterial"></option>
-              <option value="Epilepsia"></option>
-              <option value="Anemia"></option>
-              <option value="Migraña"></option>
-              <option value="Gastritis"></option>
-              <option value="Dermatitis"></option>
-              <option value="Rinitis alérgica"></option>
-            </datalist>
-            <button type="button" id="btnOtraEnfermedad" class="otra-enfermedad">Escribir otra enfermedad</button>
-            <small id="ayudaEnfermedad">Elija una sugerencia o escriba la enfermedad si no aparece en la lista.</small>
-          </div>
-          <div class="campo" id="campoMedicamento" style="display:none;">
-            <label for="medicamento">Medicamento que utiliza</label>
-            <input type="text" id="medicamento" name="medicamento" />
-          </div>
-          <div class="campo campo-full" id="campoOtros" style="display:none;">
-            <label for="otros">Otros</label>
-            <input type="text" id="otros" name="otros" />
+          <!-- Bloque dinámico de condiciones de salud (máx. 3) -->
+          <div id="bloqueSalud" style="display:none;">
+            <div id="listaSalud"></div>
+            <div class="acciones-salud">
+              <button type="button" id="btnAgregarSalud" class="btn-hermano-agregar" title="Agregar otra condición de salud">+ Agregar otra condición</button>
+              <span class="nota-hermanos">Máximo 3 condiciones. Use “✕” para eliminar una.</span>
+            </div>
+            <div id="avisoSaludVacio"></div>
           </div>
 
               <h2>Encargado</h2>
@@ -775,9 +840,9 @@
     required
     inputmode="tel"
     maxlength="9"
-    pattern="[0-9]{4}-?[0-9]{4}"
+    pattern="[2567][0-9]{3}-?[0-9]{4}"
     placeholder="0000-0000"
-    title="Ingrese 8 números; puede escribirlos con o sin guion"/>
+    title="Teléfono: 8 dígitos, comienza con 2, 5, 6 o 7."/>
 </div>
 <div class="campo">
   <label for="whatsappResponsable">WhatsApp</label>
@@ -787,9 +852,9 @@
     name="whatsappResponsable"
     inputmode="tel"
     maxlength="9"
-    pattern="[0-9]{4}-?[0-9]{4}"
+    pattern="[567][0-9]{3}-?[0-9]{4}"
     placeholder="0000-0000"
-    title="Ingrese 8 números; puede escribirlos con o sin guion"/>
+    title="Celular: 8 dígitos, comienza con 5, 6 o 7."/>
 </div>
 <div class="campo">
   <label for="correoResponsable">Correo electrónico del responsable</label>
@@ -826,7 +891,7 @@
           </div>
           <div class="campo">
             <label for="madreLugarTrabajo">Lugar de trabajo</label>
-            <input type="text" id="madreLugarTrabajo" name="madreLugarTrabajo" required />
+            <input type="text" id="madreLugarTrabajo" name="madreLugarTrabajo" maxlength="40" title="Máximo 40 caracteres." required />
           </div>
 <div class="campo">
   <label for="madreDui">Número de DUI</label>
@@ -851,9 +916,9 @@
     required
     inputmode="tel"
     maxlength="9"
-    pattern="[0-9]{4}-?[0-9]{4}"
+    pattern="[567][0-9]{3}-?[0-9]{4}"
     placeholder="0000-0000"
-    title="Ingrese 8 números; puede escribirlos con o sin guion"
+    title="Celular: 8 dígitos, comienza con 5, 6 o 7."
   />
 </div>
         </div>
@@ -875,7 +940,7 @@
           </div>
           <div class="campo">
             <label for="padreLugarTrabajo">Lugar de trabajo</label>
-            <input type="text" id="padreLugarTrabajo" name="padreLugarTrabajo" required />
+            <input type="text" id="padreLugarTrabajo" name="padreLugarTrabajo" maxlength="40" title="Máximo 40 caracteres." required />
           </div>
 <div class="campo">
   <label for="padreDui">Número de DUI</label>
@@ -900,9 +965,9 @@
     required
     inputmode="tel"
     maxlength="9"
-    pattern="[0-9]{4}-?[0-9]{4}"
+    pattern="[567][0-9]{3}-?[0-9]{4}"
     placeholder="0000-0000"
-    title="Ingrese 8 números; puede escribirlos con o sin guion"
+    title="Celular: 8 dígitos, comienza con 5, 6 o 7."
   />
 </div>
         </div>
@@ -977,17 +1042,13 @@
 
       <div class="acciones acciones-comprobante">
         <button type="button" class="btn-volver" onclick="volverInicioMatricula()">Volver al inicio</button>
-        <button type="button" class="btn-guardar" onclick="descargarComprobantePDF()">⬇️ Descargar PDF</button>
+        <button type="button" id="btnDescargarComprobante" class="btn-guardar" onclick="descargarComprobantePDF()">⬇️ Descargar PDF</button>
         <button type="button" class="btn-guardar btn-finalizar" onclick="imprimirComprobanteMatricula()">🖨️ Imprimir</button>
       </div>
     </section>
   </main>
 
-  <!-- Librería para "Descargar como PDF" del comprobante -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <!-- Recuerda cambiar el v=5 por v=6 para forzar la recarga -->
-  <script type="module" src="nuevo_ingreso.js?v=16"></script>
+  <script type="module" src="nuevo_ingreso.js?v=19"></script>
 
 </body>
 </html>

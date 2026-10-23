@@ -1,4 +1,5 @@
 import { supabase } from '../supabase-config.js';
+import { descargarComprobantePDF } from './comprobante-pdf.js';
 
 const form = document.getElementById('consulta');
 const resultado = document.getElementById('resultado');
@@ -61,12 +62,11 @@ document.getElementById('cerrar').addEventListener('click', () => { limpiar(); f
 document.getElementById('imprimir').addEventListener('click', () => { if (!resultado.hidden) window.print(); });
 document.getElementById('pdf').addEventListener('click', async e => {
   if (resultado.hidden) return;
-  if (typeof window.html2pdf !== 'function') { estado.textContent = 'Use Imprimir y seleccione Guardar como PDF; el generador no pudo cargarse.'; return; }
   const comprobante = document.getElementById('comprobante');
-  e.target.disabled = true; comprobante.classList.add('exportando');
+  e.target.disabled = true;
   try {
-    await window.html2pdf().set({ margin:10, filename:`Comprobante-${ficha}.pdf`, html2canvas:{scale:2,scrollY:0}, jsPDF:{unit:'mm',format:'a4',orientation:'portrait'} }).from(comprobante).save();
+    await descargarComprobantePDF(comprobante, `Comprobante-${ficha}.pdf`);
   } catch { estado.textContent = 'No se pudo descargar el PDF. Use Imprimir y seleccione Guardar como PDF.'; }
-  finally { comprobante.classList.remove('exportando'); e.target.disabled = false; }
+  finally { e.target.disabled = false; }
 });
 window.addEventListener('pagehide', () => { limpiar(); form.reset(); });

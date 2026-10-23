@@ -1,5 +1,7 @@
 import { iniciarBuscadorNacimiento, validarLugarNacimiento } from './buscador-nacimiento.js';
 import { iniciarBorrador } from './borrador.mjs?v=2';
+import { descargarComprobantePDF as descargarPDFCompleto } from './comprobante-pdf.js';
+import { TELEFONOS_SV } from '../telefonos-sv.js';
 import { crearFichaAleatoria, fichaDelAnioSiguiente } from './ficha-aleatoria.mjs';
 import { normalizarTexto, errorNombre, errorTelefono, errorCorreo, errorFecha, errorFoto, errorTextoDescriptivo } from './validaciones.mjs?v=4';
 import {
@@ -94,39 +96,23 @@ window.imprimirComprobanteMatricula = function () {
   window.print();
 };
 
-window.descargarComprobantePDF = function () {
+let descargandoComprobante = false;
+window.descargarComprobantePDF = async function () {
   const elemento = document.getElementById("comprobanteImprimible");
-  if (!elemento) return;
-
-  if (typeof html2pdf === "undefined") {
-    alert("No se pudo cargar el generador de PDF (revise su conexión a internet). Puede usar el botón Imprimir y elegir “Guardar como PDF”.");
-    return;
-  }
-
-  // Corrige el PDF en blanco: si la página está desplazada (scroll),
-  // html2canvas captura el área equivocada. Se sube al tope antes de generar.
-  window.scrollTo(0, 0);
-
+  if (!elemento || descargandoComprobante) return;
+  const boton = document.getElementById('btnDescargarComprobante');
   const fichaInput = document.getElementById("numeroFicha");
   const nombreArchivo = `Comprobante-Matricula-${(fichaInput && fichaInput.value) || "INCO"}.pdf`;
-
-  const opciones = {
-    margin: 10,
-    filename: nombreArchivo,
-    image: { type: "jpeg", quality: 0.98 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      scrollX: 0,
-      scrollY: 0
-    },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-  };
-
-  setTimeout(() => {
-    html2pdf().set(opciones).from(elemento).save();
-  }, 50);
+  descargandoComprobante = true;
+  if (boton) boton.disabled = true;
+  try {
+    await descargarPDFCompleto(elemento, nombreArchivo);
+  } catch {
+    alert('No se pudo descargar el comprobante. Intente nuevamente o use Imprimir y Guardar como PDF.');
+  } finally {
+    descargandoComprobante = false;
+    if (boton) boton.disabled = false;
+  }
 };
 
 window.volverInicioMatricula = async function () {
@@ -139,23 +125,23 @@ window.volverInicioMatricula = async function () {
    VALIDACIÓN POR CAMPO
 ========================================================= */
 const mensajesPersonalizados = {
-  nie: "El NIE debe contener solo números, hasta 12 dígitos.",
+  nie: "El NIE debe contener solo números, entre 7 y 12 dígitos.",
   duiEstudiante: "Formato requerido: 00000000-0.",
   lugarNacimiento: "Ingrese el lugar de nacimiento del estudiante.",
   tipoTransporte: "Seleccione el tipo de transporte que utiliza.",
   zonaResidencia: "Seleccione la zona de residencia.",
   conQuienVive: "Seleccione con quién vive el estudiante.",
   conQuienViveOtro: "Especifique con quién vive el estudiante.",
-  direccionResidencia: "Ingrese la dirección de residencia.",
+  direccionResidencia: "Ingrese la dirección de residencia (máximo 70 caracteres, sin símbolos como * o +).",
   primerApellido: "Ingrese un apellido válido (máximo 12 caracteres).",
   segundoApellido: "Ingrese un apellido válido (máximo 12 caracteres).",
   primerNombre: "Ingrese un nombre válido (máximo 12 caracteres).",
   segundoNombre: "Ingrese un nombre válido (máximo 12 caracteres).",
   fechaNacimiento: "Seleccione la fecha de nacimiento del estudiante.",
   sexo: "Seleccione el sexo del estudiante.",
-  telefonoEstudiante: "Ingrese exactamente 8 números.",
+  telefonoEstudiante: "Use 8 dígitos; inicie con 2, 5, 6 o 7.",
   correoEstudiantil: "Escriba solo números; el dominio @clases.edu.sv se agrega automáticamente.",
-  correoPersonal: "Ingrese un correo electrónico válido con arroba (@).",
+  correoPersonal: "Ingrese un correo válido de hasta 35 caracteres.",
   grado: "Seleccione el grado que cursará.",
   tipoIngreso: "Indique si el estudiante es de nuevo ingreso o antiguo ingreso.",
   especialidad: "Seleccione la especialidad o bachillerato.",
@@ -171,13 +157,11 @@ const mensajesPersonalizados = {
   tallaFalda: "Seleccione la talla de falda.",
   vacunaCovid: "Indique si tiene la vacuna COVID-19.",
   enfermedad: "Indique si padece alguna enfermedad.",
-  cualEnfermedad: "Especifique la enfermedad.",
-  medicamento: "Especifique el medicamento que utiliza.",
   responsable: "Ingrese el nombre del responsable (solo letras).",
   parentesco: "Seleccione el parentesco del responsable.",
   duiResponsable: "Formato requerido: 00000000-0.",
-  telefonoResponsable: "Ingrese exactamente 8 números.",
-  whatsappResponsable: "Ingrese exactamente 8 números.",
+  telefonoResponsable: "Use 8 dígitos; inicie con 2, 5, 6 o 7.",
+  whatsappResponsable: "Use 8 dígitos; inicie con 5, 6 o 7.",
   correoResponsable: "Ingrese un correo electrónico válido (Gmail, Yahoo, Outlook u otro proveedor).",
   distanciaKm: "Ingrese la distancia en kilómetros (máximo 3 números, puede incluir un punto decimal).",
   madreNombre: "Ingrese el nombre completo de la madre (solo letras).",
@@ -186,14 +170,14 @@ const mensajesPersonalizados = {
   madreDui: "Formato requerido: 00000000-0.",
   madreLugarNacimiento: "Ingrese el lugar de nacimiento de la madre.",
   madreFechaNacimiento: "Seleccione la fecha de nacimiento de la madre.",
-  madreCelular: "Formato requerido: 0000-0000.",
+  madreCelular: "Use 8 dígitos; inicie con 5, 6 o 7.",
   padreNombre: "Ingrese el nombre completo del padre (solo letras).",
   padreOcupacion: "Ingrese la ocupación del padre.",
   padreLugarTrabajo: "Ingrese el lugar de trabajo del padre.",
   padreDui: "Formato requerido: 00000000-0.",
   padreLugarNacimiento: "Ingrese el lugar de nacimiento del padre.",
   padreFechaNacimiento: "Seleccione la fecha de nacimiento del padre.",
-  padreCelular: "Formato requerido: 0000-0000.",
+  padreCelular: "Use 8 dígitos; inicie con 5, 6 o 7.",
   partidaNumero: "Ingrese el número de partida (solo números, máximo 5 dígitos).",
   folio: "Ingrese el folio (solo números).",
   tomo: "Ingrese el tomo (solo números).",
@@ -251,14 +235,14 @@ function validarContenido(el, valor) {
     if (valor.replace(/\D/g, '') === otro?.value.replace(/\D/g, '')) return 'El DUI del padre y de la madre no puede ser el mismo.';
   }
   if (el.maxLength > 0 && valor.length > el.maxLength) return `Máximo ${el.maxLength} caracteres.`;
-  if (el.id === 'direccionResidencia') return errorTextoDescriptivo(valor, { direccion: true, maximo: 50 });
+  if (el.id === 'direccionResidencia') return errorTextoDescriptivo(valor, { direccion: true, maximo: 70 });
   if (['madreOcupacion', 'padreOcupacion', 'madreLugarTrabajo', 'padreLugarTrabajo', 'colegioAnterior'].includes(el.id)) return errorTextoDescriptivo(valor);
   if (['primerNombre', 'segundoNombre', 'primerApellido', 'segundoApellido', 'responsable', 'madreNombre', 'padreNombre'].includes(el.id) || el.classList.contains('hermano-nombre')) return errorNombre(valor, el.maxLength > 0 ? el.maxLength : 50);
-  if (['telefonoEstudiante', 'telefonoResponsable', 'whatsappResponsable', 'madreCelular', 'padreCelular'].includes(el.id)) return errorTelefono(valor, ['whatsappResponsable', 'madreCelular', 'padreCelular'].includes(el.id));
+  if (TELEFONOS_SV[el.id]) return errorTelefono(valor, TELEFONOS_SV[el.id].celular);
   if (el.type === 'email') return errorCorreo(valor);
   if (el.type === 'date') return errorFecha(valor);
   if (el.tagName === 'SELECT' && !Array.from(el.options).some(o => !o.disabled && o.value === valor)) return 'Seleccione una opción válida de la lista.';
-  if (el.id === 'nie' && (!/^\d{1,12}$/.test(valor) || /^0+$/.test(valor))) return 'Ingrese un NIE de hasta 12 dígitos, distinto de cero.';
+  if (el.id === 'nie' && (!/^\d{7,12}$/.test(valor) || /^0+$/.test(valor))) return 'Ingrese un NIE entre 7 y 12 dígitos, distinto de cero.';
   if (['duiEstudiante', 'duiResponsable', 'madreDui', 'padreDui'].includes(el.id) && /^(\d)\1{7}-\1$/.test(valor)) return 'Revise el DUI: no puede contener todos los dígitos iguales.';
   if (el.type === 'number' && (!Number.isFinite(Number(valor)) || el.validity.badInput || el.validity.rangeUnderflow || el.validity.rangeOverflow || el.validity.stepMismatch)) return 'Ingrese un número dentro del rango permitido.';
   if (['text', 'textarea'].includes(el.type) && (valor.length > 500 || /[<>\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(valor))) return 'Use texto de hasta 500 caracteres sin etiquetas HTML ni caracteres de control.';
@@ -276,10 +260,13 @@ function avisarError(mensaje) {
 
 function validarCampo(el, incluirPasoOculto = false) {
   if (el.type === "submit" || el.type === "button" || el.type === 'hidden') return true;
+  if (el.type === 'checkbox' || el.id === 'fotoCamara') return true;
 
   if (el.type === "file") {
     const fotoError = document.getElementById("fotoError");
-    const mensajeFoto = errorFoto(el.files[0]) || (el.dataset.estadoFoto !== 'lista' ? 'Espere a que termine de cargar una fotografía válida.' : '');
+    const mensajeFoto = el.dataset.camaraProcesando === 'true'
+      ? 'Espere a que termine de preparar la foto.'
+      : errorFoto(el.files[0]) || (el.dataset.estadoFoto !== 'lista' ? 'Espere a que termine de cargar una fotografía válida.' : '');
     if (mensajeFoto) {
       el.setAttribute('aria-invalid', 'true');
       if (fotoError) fotoError.textContent = mensajeFoto;
@@ -378,7 +365,7 @@ function validarPaso(numeroPaso, incluirPasoOculto = false) {
 
   campos.forEach((el) => {
     if (el.type === "submit" || el.type === "button" || el.readOnly || el.disabled) return;
-    if (el.classList && el.classList.contains("hermano-input")) return; // validado aparte
+    if (el.classList && (el.classList.contains("hermano-input") || el.classList.contains("salud-input"))) return; // validado aparte
     const ok = validarCampo(el, incluirPasoOculto);
     if (!ok) {
       pasoValido = false;
@@ -387,6 +374,10 @@ function validarPaso(numeroPaso, incluirPasoOculto = false) {
   });
 
   if (numeroPaso === 2 && !validarHermanos()) {
+    pasoValido = false;
+  }
+
+  if (numeroPaso === 4 && !validarSalud()) {
     pasoValido = false;
   }
 
@@ -401,18 +392,7 @@ function validarPaso(numeroPaso, incluirPasoOculto = false) {
 }
 
 function mensajeErroresPaso(numeroPaso) {
-  const seccion = document.querySelector(`.form-step[data-step="${numeroPaso}"]`);
-  if (!seccion) return 'Revise los campos marcados antes de continuar.';
-  const mensajes = Array.from(seccion.querySelectorAll('[aria-invalid="true"]')).map(el => {
-    const etiqueta = el.id === 'fotoEstudiante' ? 'Fotografía' : el.labels?.[0]?.textContent.trim() || 'Campo';
-    const detalle = el.id === 'fotoEstudiante' ? document.getElementById('fotoError')?.textContent : obtenerContenedor(el).querySelector('.error-mensaje')?.textContent;
-    return `${etiqueta}: ${detalle || 'Revise este dato.'}`;
-  });
-  if (numeroPaso === 2) {
-    const hermanos = document.getElementById('avisoHermanosVacio');
-    if (hermanos && hermanos.style.display !== 'none' && hermanos.textContent) mensajes.push(hermanos.textContent);
-  }
-  return mensajes.length ? `No se puede continuar:\n${mensajes.join('\n')}` : 'Revise los datos del paso actual antes de continuar.';
+  return `Revise los campos marcados en el paso ${numeroPaso}.`;
 }
 
 // Enlazar validación en vivo
@@ -524,41 +504,213 @@ function actualizarEspecialidades() {
   }
 }
 
-function configurarCamposSalud() {
-  const enfermedad = document.getElementById("enfermedad");
-  const campoCualEnfermedad = document.getElementById("campoCualEnfermedad");
-  const campoMedicamento = document.getElementById("campoMedicamento");
-  const campoOtros = document.getElementById("campoOtros");
+/* =========================================================
+   SALUD: ¿padece alguna enfermedad? (bloque dinámico, máx. 3)
+========================================================= */
+const MAX_SALUD = 3;
+let contadorSalud = 0;
 
-  if (!enfermedad) return;
+const SUGERENCIAS_ENFERMEDADES = [
+  "Asma", "Alergias", "Diabetes", "Hipertensión arterial", "Epilepsia", "Anemia",
+  "Migraña", "Gastritis", "Dermatitis", "Rinitis alérgica", "Convulsiones",
+  "Problemas de la vista", "Problemas auditivos", "Trastorno del habla", "TDAH",
+  "Autismo", "Discapacidad motriz", "Cardiopatía", "Insuficiencia renal",
+  "Tuberculosis", "Varicela", "Bronquitis", "Conjuntivitis", "Psoriasis",
+  "Artritis", "Hipotiroidismo", "Hipertiroidismo", "Colesterol alto", "Obesidad",
+  "Desnutrición", "Trastorno de ansiedad", "Depresión", "Sinusitis crónica",
+  "Escoliosis", "Soplo cardíaco", "Intolerancia a la lactosa", "Celiaquía",
+  "Vértigo", "Anemia falciforme", "Lupus"
+];
 
-  document.getElementById('btnOtraEnfermedad')?.addEventListener('click', () => {
-    const campo = document.getElementById('cualEnfermedad');
-    campo.focus();
-    campo.select();
+function activarAutocompletado(input, sugerencias) {
+  const lista = input.parentElement.querySelector(".autocompletado-lista");
+  if (!lista) return;
+
+  const render = (coincidencias) => {
+    lista.innerHTML = "";
+    if (!coincidencias.length) {
+      lista.hidden = true;
+      return;
+    }
+    coincidencias.slice(0, 6).forEach((texto) => {
+      const li = document.createElement("li");
+      li.textContent = texto;
+      li.addEventListener("mousedown", (evento) => {
+        evento.preventDefault();
+        input.value = texto;
+        lista.hidden = true;
+        validarCampo(input);
+      });
+      lista.appendChild(li);
+    });
+    lista.hidden = false;
+  };
+
+  input.addEventListener("input", () => {
+    const consulta = normalizarTexto(input.value).toLocaleLowerCase("es").trim();
+    if (!consulta) {
+      lista.hidden = true;
+      return;
+    }
+    const coincidencias = sugerencias.filter((s) =>
+      normalizarTexto(s).toLocaleLowerCase("es").includes(consulta)
+    );
+    render(coincidencias);
   });
 
-  enfermedad.addEventListener("change", function() {
-    if (this.value === "Sí") {
-      if (campoCualEnfermedad) campoCualEnfermedad.style.display = "block";
-      if (campoMedicamento) campoMedicamento.style.display = "block";
-      if (campoOtros) campoOtros.style.display = "block";
+  input.addEventListener("focus", () => {
+    if (input.value.trim()) input.dispatchEvent(new Event("input"));
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(() => { lista.hidden = true; }, 150);
+  });
+}
+
+function crearFilaSalud() {
+  contadorSalud++;
+  const idSufijo = contadorSalud;
+
+  const fila = document.createElement("div");
+  fila.className = "fila-salud";
+  fila.dataset.indice = idSufijo;
+
+  fila.innerHTML = `
+    <div class="campo campo-autocompletar">
+      <label for="enfermedad_${idSufijo}">¿Cuál enfermedad?</label>
+      <input type="text" id="enfermedad_${idSufijo}" name="condicionEnfermedad[]"
+             class="salud-input salud-enfermedad" maxlength="60" autocomplete="off"
+             placeholder="Escriba o elija una sugerencia" />
+      <ul class="autocompletado-lista" hidden></ul>
+    </div>
+    <div class="campo">
+      <label for="medicamento_${idSufijo}">Medicamento (opcional)</label>
+      <input type="text" id="medicamento_${idSufijo}" name="condicionMedicamento[]"
+             class="salud-input salud-medicamento" maxlength="60"
+             placeholder="Si no lo recuerda, puede dejarlo en blanco" />
+    </div>
+    <div class="campo">
+      <label for="otrosSalud_${idSufijo}">Otros (opcional)</label>
+      <input type="text" id="otrosSalud_${idSufijo}" name="condicionOtros[]"
+             class="salud-input salud-otros" maxlength="100" placeholder="Observaciones" />
+    </div>
+    <button type="button" class="btn-hermano-quitar" title="Quitar esta condición" aria-label="Quitar esta condición">✕</button>
+  `;
+
+  const btnQuitar = fila.querySelector(".btn-hermano-quitar");
+  btnQuitar.addEventListener("click", () => {
+    fila.remove();
+    actualizarEstadoBotonesSalud();
+  });
+
+  fila.querySelectorAll(".salud-input").forEach((inp) => {
+    inp.addEventListener("input", () => limpiarError(inp));
+    inp.addEventListener("change", () => limpiarError(inp));
+  });
+
+  activarAutocompletado(fila.querySelector(".salud-enfermedad"), SUGERENCIAS_ENFERMEDADES);
+
+  return fila;
+}
+
+function actualizarEstadoBotonesSalud() {
+  const lista = document.getElementById("listaSalud");
+  const btnMas = document.getElementById("btnAgregarSalud");
+  if (!lista || !btnMas) return;
+  const total = lista.querySelectorAll(".fila-salud").length;
+  btnMas.disabled = total >= MAX_SALUD;
+  btnMas.title = total >= MAX_SALUD
+    ? `Máximo ${MAX_SALUD} condiciones`
+    : "Agregar otra condición de salud";
+}
+
+function validarSalud() {
+  const enfermedadSelect = document.getElementById("enfermedad");
+  if (!enfermedadSelect || enfermedadSelect.value !== "Sí") return true;
+
+  const lista = document.getElementById("listaSalud");
+  const avisoSalud = document.getElementById("avisoSaludVacio");
+  if (!lista) return true;
+
+  const filas = lista.querySelectorAll(".fila-salud");
+
+  if (filas.length > MAX_SALUD) {
+    if (avisoSalud) {
+      avisoSalud.textContent = `Solo puede registrar hasta ${MAX_SALUD} condiciones.`;
+      avisoSalud.style.display = "block";
+    }
+    return false;
+  }
+
+  if (filas.length === 0) {
+    if (avisoSalud) {
+      avisoSalud.textContent = "Agregue al menos una condición con el botón “+”.";
+      avisoSalud.style.display = "block";
+    }
+    return false;
+  }
+
+  let valido = true;
+  filas.forEach((fila) => {
+    const enfermedadInput = fila.querySelector(".salud-enfermedad");
+    const vacio = !enfermedadInput.value.trim();
+
+    if (vacio) {
+      valido = false;
+      fila.classList.add("fila-salud-invalida");
+      enfermedadInput.style.borderColor = "red";
     } else {
-      if (campoCualEnfermedad) {
-        campoCualEnfermedad.style.display = "none";
-        const inp = campoCualEnfermedad.querySelector("input");
-        if (inp) { inp.value = ""; limpiarError(inp); }
+      fila.classList.remove("fila-salud-invalida");
+      enfermedadInput.style.borderColor = "";
+    }
+  });
+
+  if (avisoSalud) {
+    avisoSalud.textContent = valido
+      ? ""
+      : "Especifique la enfermedad en cada condición agregada, o elimínela con “✕”.";
+    avisoSalud.style.display = valido ? "none" : "block";
+  }
+
+  return valido;
+}
+
+function limpiarSalud() {
+  const lista = document.getElementById("listaSalud");
+  if (lista) lista.innerHTML = "";
+  const avisoSalud = document.getElementById("avisoSaludVacio");
+  if (avisoSalud) {
+    avisoSalud.textContent = "";
+    avisoSalud.style.display = "none";
+  }
+  actualizarEstadoBotonesSalud();
+}
+
+function configurarCamposSalud() {
+  const enfermedadSelect = document.getElementById("enfermedad");
+  const bloqueSalud = document.getElementById("bloqueSalud");
+  const btnMas = document.getElementById("btnAgregarSalud");
+  const lista = document.getElementById("listaSalud");
+
+  if (!enfermedadSelect || !bloqueSalud || !btnMas || !lista) return;
+
+  btnMas.addEventListener("click", () => {
+    const total = lista.querySelectorAll(".fila-salud").length;
+    if (total >= MAX_SALUD) return;
+    lista.appendChild(crearFilaSalud());
+    actualizarEstadoBotonesSalud();
+  });
+
+  enfermedadSelect.addEventListener("change", function () {
+    if (this.value === "Sí") {
+      bloqueSalud.style.display = "block";
+      if (lista.querySelectorAll(".fila-salud").length === 0) {
+        lista.appendChild(crearFilaSalud());
       }
-      if (campoMedicamento) {
-        campoMedicamento.style.display = "none";
-        const inp = campoMedicamento.querySelector("input");
-        if (inp) { inp.value = ""; limpiarError(inp); }
-      }
-      if (campoOtros) {
-        campoOtros.style.display = "none";
-        const inp = campoOtros.querySelector("input");
-        if (inp) { inp.value = ""; limpiarError(inp); }
-      }
+      actualizarEstadoBotonesSalud();
+    } else {
+      bloqueSalud.style.display = "none";
+      limpiarSalud();
     }
   });
 }
@@ -566,6 +718,46 @@ function configurarCamposSalud() {
 function configurarFoto() {
   if (!fotoInput) return;
   fotoInput.required = true;
+  const camara = document.getElementById('fotoCamara');
+  document.getElementById('btnSubirFoto')?.addEventListener('click', () => fotoInput.click());
+  document.getElementById('btnTomarFoto')?.addEventListener('click', () => camara?.click());
+  camara?.addEventListener('change', async () => {
+    const archivo = camara.files[0];
+    if (!archivo) return;
+    const boton = document.getElementById('btnTomarFoto');
+    boton.disabled = true;
+    fotoInput.dataset.camaraProcesando = 'true';
+    let url;
+    try {
+      if (!['image/jpeg', 'image/png'].includes(archivo.type)) throw new Error('Use la cámara en formato JPG o PNG.');
+      if (archivo.size > 25 * 1024 * 1024) throw new Error('La foto supera 25 MB. Reduzca la resolución de la cámara.');
+      const imagen = new Image();
+      url = URL.createObjectURL(archivo);
+      imagen.src = url;
+      await imagen.decode();
+      const escala = Math.min(1, 1600 / Math.max(imagen.naturalWidth, imagen.naturalHeight));
+      const lienzo = document.createElement('canvas');
+      lienzo.width = Math.max(1, Math.round(imagen.naturalWidth * escala));
+      lienzo.height = Math.max(1, Math.round(imagen.naturalHeight * escala));
+      const contexto = lienzo.getContext('2d');
+      contexto.fillStyle = '#fff';
+      contexto.fillRect(0, 0, lienzo.width, lienzo.height);
+      contexto.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+      const blob = await new Promise(resolve => lienzo.toBlob(resolve, 'image/jpeg', .85));
+      if (!blob) throw new Error('No se pudo preparar la foto. Intente nuevamente.');
+      const transferencia = new DataTransfer();
+      transferencia.items.add(new File([blob], 'foto-estudiante.jpg', { type: 'image/jpeg' }));
+      fotoInput.files = transferencia.files;
+      fotoInput.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (error) {
+      document.getElementById('fotoError').textContent = error.message || 'No se pudo tomar la foto.';
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+      camara.value = '';
+      boton.disabled = false;
+      delete fotoInput.dataset.camaraProcesando;
+    }
+  });
   let version = 0;
   fotoInput.addEventListener('change', async function () {
     const actual = ++version;
@@ -896,6 +1088,7 @@ function configurarAutollenadoResponsable() {
   const responsable = document.getElementById("responsable");
   const duiResponsable = document.getElementById("duiResponsable");
   const telefonoResponsable = document.getElementById("telefonoResponsable");
+  const whatsappResponsable = document.getElementById('whatsappResponsable');
   const correoResponsable = document.getElementById("correoResponsable");
   if (!parentesco || !responsable) return;
 
@@ -925,7 +1118,8 @@ function configurarAutollenadoResponsable() {
     const asignaciones = [
       [`${prefijo}Nombre`, responsable.value],
       [`${prefijo}Dui`, duiResponsable?.value || ""],
-      [`${prefijo}Celular`, telefonoResponsable?.value || ""]
+      [`${prefijo}Celular`, [telefonoResponsable?.value, whatsappResponsable?.value]
+        .find(valor => valor && !errorTelefono(valor, true)) || '']
     ];
     asignaciones.forEach(([id, valor]) => {
       const campo = document.getElementById(id);
@@ -937,7 +1131,7 @@ function configurarAutollenadoResponsable() {
     });
   };
 
-  [parentesco, responsable, duiResponsable, telefonoResponsable, correoResponsable]
+  [parentesco, responsable, duiResponsable, telefonoResponsable, whatsappResponsable, correoResponsable]
     .filter(Boolean)
     .forEach(campo => campo.addEventListener("input", sincronizar));
   parentesco.addEventListener("change", sincronizar);
@@ -1023,27 +1217,75 @@ const DOCUMENTACION = {
 function actualizarDocumentacion() {
   const bloque = document.getElementById("bloqueDocumentacion");
   if (!bloque) return;
-
   const tipo = tipoIngreso ? tipoIngreso.value : "";
   const gradoValor = grado ? grado.value : "";
-
-  const lista = (DOCUMENTACION[tipo] && DOCUMENTACION[tipo][gradoValor]) || null;
-
-  if (!tipo || !gradoValor) {
-    bloque.innerHTML = `<p class="documentacion-placeholder">Seleccione el grado (Paso 1) y el tipo de ingreso (Paso 2) para ver la documentación requerida.</p>`;
-    return;
+  // Conservar los controles de cada combinación permite recuperar el borrador
+  // y volver a un grado anterior sin perder ni mezclar sus selecciones.
+  if (!bloque.dataset.checksListos) {
+    bloque.replaceChildren();
+    const aviso = document.createElement('p');
+    aviso.className = 'documentacion-placeholder';
+    bloque.append(aviso);
+    Object.entries(DOCUMENTACION).forEach(([ingreso, grados], t) => {
+      Object.entries(grados).forEach(([anio, lista], g) => {
+        const grupo = document.createElement('div');
+        grupo.className = 'documentacion-grupo';
+        grupo.dataset.tipo = ingreso;
+        grupo.dataset.grado = anio;
+        grupo.innerHTML = `<span class="documentacion-etiqueta">${ingreso} · ${anio}</span>
+          <h4>Documentos a presentar</h4><p>Marque los que ya tiene disponibles.</p><ol class="documentacion-lista"></ol>
+          <p class="documentacion-resumen" role="status" aria-live="polite"></p>`;
+        lista.forEach((texto, i) => {
+          const item = document.createElement('li');
+          const etiqueta = document.createElement('label');
+          const check = document.createElement('input');
+          check.type = 'checkbox';
+          check.id = `documento-${t}-${g}-${i}`;
+          check.dataset.numero = String(i + 1);
+          const contenido = document.createElement('span');
+          contenido.textContent = `${i + 1}. ${texto}`;
+          etiqueta.append(check, contenido);
+          item.append(etiqueta);
+          grupo.querySelector('ol').append(item);
+        });
+        bloque.append(grupo);
+      });
+    });
+    bloque.addEventListener('change', actualizarResumenDocumentacion);
+    bloque.dataset.checksListos = 'true';
   }
+  let encontrado = false;
+  bloque.querySelectorAll('.documentacion-grupo').forEach(grupo => {
+    grupo.hidden = grupo.dataset.tipo !== tipo || grupo.dataset.grado !== gradoValor;
+    if (!grupo.hidden) encontrado = true;
+  });
+  const aviso = bloque.querySelector('.documentacion-placeholder');
+  aviso.hidden = encontrado;
+  aviso.textContent = !tipo || !gradoValor
+    ? 'Seleccione grado y tipo de ingreso para ver los documentos.'
+    : 'Consulte la documentación requerida con la institución.';
+  actualizarResumenDocumentacion();
+}
 
-  if (!lista) {
-    bloque.innerHTML = `<p class="documentacion-placeholder">No hay documentación registrada para "${gradoValor}" como "${tipo}". Consulte con la institución.</p>`;
-    return;
-  }
+function obtenerDisponibilidadDocumentos() {
+  const grupo = document.querySelector('.documentacion-grupo:not([hidden])');
+  if (!grupo) return null;
+  const lista = DOCUMENTACION[grupo.dataset.tipo][grupo.dataset.grado];
+  return {
+    grado: grupo.dataset.grado,
+    tipoIngreso: grupo.dataset.tipo,
+    documentos: Array.from(grupo.querySelectorAll('input')).map((check, i) => ({
+      numero: i + 1, texto: lista[i], disponible: check.checked
+    }))
+  };
+}
 
-  bloque.innerHTML = `
-    <span class="documentacion-etiqueta">${tipo} · ${gradoValor}</span>
-    <h4>Documentos a presentar</h4>
-    <ul>${lista.map(item => `<li>${item}</li>`).join("")}</ul>
-  `;
+function actualizarResumenDocumentacion() {
+  const grupo = document.querySelector('.documentacion-grupo:not([hidden])');
+  if (!grupo) return;
+  const total = grupo.querySelectorAll('input').length;
+  const disponibles = grupo.querySelectorAll('input:checked').length;
+  grupo.querySelector('.documentacion-resumen').textContent = `${disponibles} de ${total} disponibles · ${total - disponibles} pendientes`;
 }
 
 /* =========================================================
@@ -1148,7 +1390,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     try {
       controladorBorrador = await iniciarBorrador({ form, foto:fotoInput, crearHermano:crearFilaHermano, mostrarPaso, obtenerPaso:() => pasoActual, finalizado:() => guardado });
       actualizarEstadoBotonesHermanos();
+      actualizarEstadoBotonesSalud();
       actualizarEspecialidades();
+      actualizarResumenDocumentacion();
       todosLosCampos.forEach(el => { if (el.type !== 'file' && el.type !== 'hidden') limpiarError(el); });
     } finally { form.inert = false; }
 
@@ -1209,7 +1453,7 @@ if (form) {
         mensajeExito.textContent = "❌ Complete todos los campos obligatorios correctamente.";
         mensajeExito.style.color = "red";
       }
-      avisarError(`No se guardó la matrícula.\n${mensajeErroresPaso(primerPasoInvalido)}`);
+      avisarError(mensajeErroresPaso(primerPasoInvalido));
       return;
     }
 
@@ -1241,7 +1485,7 @@ if (form) {
 
     formData.forEach((value, key) => {
       const campo = form.elements.namedItem(key);
-      if (!['fotoBase64', 'fotoEstudiante', 'nombresHermanos[]', 'gradosHermanos[]'].includes(key) && typeof value === 'string' && campo && campoAplicable(campo) && value.trim() !== '') {
+      if (!['fotoBase64', 'fotoEstudiante', 'nombresHermanos[]', 'gradosHermanos[]', 'condicionEnfermedad[]', 'condicionMedicamento[]', 'condicionOtros[]'].includes(key) && typeof value === 'string' && campo && campoAplicable(campo) && value.trim() !== '') {
         data[key] = value.trim();
       }
     });
@@ -1255,6 +1499,18 @@ if (form) {
       .filter(h => h.nombre || h.grado);
     if (hermanos.length) {
       data.hermanos = hermanos;
+    }
+
+    // Condiciones de salud: se arman como lista de objetos { enfermedad, medicamento, otros }
+    const tieneSalud = formData.get('enfermedad') === 'Sí';
+    const enfermedadesLista = tieneSalud ? formData.getAll("condicionEnfermedad[]").map(v => normalizarTexto(v)) : [];
+    const medicamentosLista = tieneSalud ? formData.getAll("condicionMedicamento[]").map(v => v.trim()) : [];
+    const otrosSaludLista = tieneSalud ? formData.getAll("condicionOtros[]").map(v => v.trim()) : [];
+    const condicionesSalud = enfermedadesLista
+      .map((enf, i) => ({ enfermedad: enf, medicamento: medicamentosLista[i] || "", otros: otrosSaludLista[i] || "" }))
+      .filter(c => c.enfermedad || c.medicamento || c.otros);
+    if (condicionesSalud.length) {
+      data.condicionesSalud = condicionesSalud;
     }
 
     if (data.conQuienVive === "Otros" && data.conQuienViveOtro) {
@@ -1275,6 +1531,7 @@ if (form) {
     data.numeroFicha = numeroFicha ? numeroFicha.value : "";
     data.estado = "Activo";
     data.fechaRegistro = new Date().toISOString();
+    data.disponibilidadDocumentos = obtenerDisponibilidadDocumentos();
 
     try {
       if (!fichaDelAnioSiguiente(data.numeroFicha)) data.numeroFicha = crearFichaAleatoria();
@@ -1602,20 +1859,15 @@ function configurarTema() {
 /* ============================================================
    VALIDACIÓN Y FORMATO DE TELÉFONOS
 ============================================================ */
-const camposTelefono = [
-  "telefonoEstudiante",
-  "telefonoResponsable",
-  "whatsappResponsable",
-  "madreCelular",
-  "padreCelular"
-];
+const camposTelefono = Object.keys(TELEFONOS_SV);
 
 camposTelefono.forEach(id => {
   const campo = document.getElementById(id);
   if (!campo) return;
 
   campo.setAttribute('inputmode', 'numeric');
-  const celular = ['whatsappResponsable', 'madreCelular', 'padreCelular'].includes(id);
+  const celular = TELEFONOS_SV[id].celular;
+  campo.pattern = celular ? '[567][0-9]{3}-?[0-9]{4}' : '[2567][0-9]{3}-?[0-9]{4}';
   campo.title = celular ? 'Celular salvadoreño: 8 dígitos, comienza con 5, 6 o 7.' : 'Teléfono salvadoreño: 8 dígitos, comienza con 2, 5, 6 o 7.';
   campo.addEventListener('beforeinput', e => {
     // Permitir números ya formateados desde autocompletado; el guion manual se agrega automáticamente.
@@ -1637,7 +1889,8 @@ camposTelefono.forEach(id => {
 function formatearTelefonoEntrada(campo) {
   const cursor = campo.selectionStart;
   const digitosAntes = campo.value.slice(0, cursor ?? campo.value.length).replace(/\D/g, '').length;
-  const numeros = campo.value.replace(/\D/g, '').slice(0, 8);
+  // Conservar dígitos extra para señalar el error; truncarlos podría guardar otro número.
+  const numeros = campo.value.replace(/\D/g, '');
   const valor = numeros.length > 4 ? numeros.slice(0, 4) + '-' + numeros.slice(4) : numeros;
   if (campo.value !== valor) {
     campo.value = valor;

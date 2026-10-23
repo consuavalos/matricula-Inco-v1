@@ -40,17 +40,7 @@ export function errorNombre(valor, maximo = 50) {
   return '';
 }
 
-export function errorTelefono(valor, celular = false) {
-  if (!/^\d{4}-?\d{4}$/.test(valor)) return 'Ingrese 8 dígitos, con o sin guion (0000-0000).';
-  const numero = valor.replace('-', '');
-  // SIGET, Plan de Numeración 2025: fijos 2; móviles 5, 6 y 7.
-  if (!(celular ? /^[567]/ : /^[2567]/).test(numero)) return celular
-    ? 'El celular debe comenzar con 5, 6 o 7.' : 'El teléfono debe comenzar con 2, 5, 6 o 7.';
-  if (/^(\d)\1{7}$/.test(numero) || /^(\d{2})\1{3}$/.test(numero) || /^(\d{4})\1$/.test(numero) || /(\d)\1{5,}/.test(numero) || '0123456789'.includes(numero) || '9876543210'.includes(numero)) {
-    return 'El teléfono contiene una repetición o secuencia sospechosa. Revíselo.';
-  }
-  return '';
-}
+export { errorTelefono } from '../telefonos-sv.js';
 
 export function errorCorreo(valor) {
   if (valor !== valor.toLowerCase()) return 'El correo debe escribirse en minúsculas.';

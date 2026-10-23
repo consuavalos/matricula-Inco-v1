@@ -53,9 +53,11 @@ test('recuperación: verifica datos, no crea matrículas, muestra ficha original
     assert.deepEqual(await page.evaluate(()=>window.argumentos),{p_nie:'289132934',p_nacimiento:'2009-11-14',p_dui:'01234567-8'});
     await page.evaluate(()=>window.print=()=>window.impreso=true);
     await page.locator('#imprimir').click(); assert.equal(await page.evaluate(()=>window.impreso),true);
-    await page.locator('#pdf').click(); assert.match(await page.locator('#estado').innerText(),/Guardar como PDF/);
-    await page.evaluate(()=>window.html2pdf=()=>({set(o){window.pdfOpciones=o;return this;},from(){return this;},save(){window.pdfGuardado=true;return Promise.resolve();}}));
-    await page.locator('#pdf').click(); assert.equal(await page.evaluate(()=>window.pdfOpciones.filename),'Comprobante-FIC-2027-646.pdf');
+    const descargaPendiente = page.waitForEvent('download');
+    await page.locator('#pdf').click();
+    const descarga = await descargaPendiente;
+    assert.equal(descarga.suggestedFilename(), 'Comprobante-FIC-2027-646.pdf');
+    assert.equal(await descarga.failure(), null);
     await page.locator('#tema').click(); assert.equal(await page.locator('body').getAttribute('class'),'oscuro');
     await page.locator('#cerrar').click(); assert.equal(await page.locator('#resultado').isVisible(),false);
     for (const modo of ['limite','error']) {
