@@ -1,13 +1,13 @@
 import { iniciarBuscadorNacimiento, validarLugarNacimiento } from './buscador-nacimiento.js';
 import { iniciarBorrador } from './borrador.mjs?v=2';
 import { descargarComprobantePDF as descargarPDFCompleto } from './comprobante-pdf.js';
-import { TELEFONOS_SV } from '../telefonos-sv.js';
+import { TELEFONOS_SV } from './telefonos-sv.js';
 import { crearFichaAleatoria, fichaDelAnioSiguiente } from './ficha-aleatoria.mjs';
-import { normalizarTexto, errorNombre, errorTelefono, errorCorreo, errorFecha, errorFoto, errorTextoDescriptivo } from './validaciones.mjs?v=4';
+import { normalizarTexto, errorNombre, errorTelefono, errorCorreo, errorFecha, errorFoto, errorTextoDescriptivo } from './validaciones.mjs?v=5';
 import {
   crearMatricula,
   nieYaExiste,
-} from "../supabase-data.js";
+} from "./api-publica.js";
 
 /* =========================================================
    REFERENCIAS
@@ -118,7 +118,7 @@ window.descargarComprobantePDF = async function () {
 window.volverInicioMatricula = async function () {
   if (!guardado) return;
   await controladorBorrador?.eliminar();
-  window.location.replace("../index.html");
+  window.location.replace("./index.html");
 };
 
 /* =========================================================

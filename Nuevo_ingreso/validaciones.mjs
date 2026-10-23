@@ -40,7 +40,7 @@ export function errorNombre(valor, maximo = 50) {
   return '';
 }
 
-export { errorTelefono } from '../telefonos-sv.js';
+export { errorTelefono } from './telefonos-sv.js';
 
 export function errorCorreo(valor) {
   if (valor !== valor.toLowerCase()) return 'El correo debe escribirse en minúsculas.';

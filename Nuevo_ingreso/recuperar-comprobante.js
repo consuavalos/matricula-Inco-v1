@@ -1,4 +1,4 @@
-import { supabase } from '../supabase-config.js';
+import { obtenerSupabase } from './api-publica.js';
 import { descargarComprobantePDF } from './comprobante-pdf.js';
 
 const form = document.getElementById('consulta');
@@ -34,6 +34,7 @@ form.addEventListener('submit', async e => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
+    const supabase = await obtenerSupabase();
     const { data, error } = await supabase.rpc('recuperar_comprobante', {
       p_nie: document.getElementById('nie').value,
       p_nacimiento: document.getElementById('nacimiento').value,
